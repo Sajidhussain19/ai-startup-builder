@@ -4,12 +4,12 @@ import os
 
 load_dotenv()
 
-client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
-
 def run_developer_agent(startup_idea: str) -> dict:
     """
     Developer Agent - Generates system architecture and tech stack
     """
+    client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+    
     print(f"👨‍💻 Developer Agent working on: {startup_idea}")
 
     prompt = f"""

@@ -4,12 +4,12 @@ import os
 
 load_dotenv()
 
-client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
-
 def run_marketing_agent(startup_idea: str) -> dict:
     """
     Marketing Agent - Creates growth and marketing strategies
     """
+    client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+    
     print(f"📣 Marketing Agent working on: {startup_idea}")
 
     prompt = f"""

@@ -1,8 +1,17 @@
+
 from openai import OpenAI
 from dotenv import load_dotenv
+from langsmith import traceable
 import os
 
 load_dotenv()
+
+@traceable(name="CEO Agent")
+def run_ceo_agent(startup_idea: str) -> dict:
+    client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+    
+    print(f"🤖 CEO Agent working on: {startup_idea}")
+    # ... rest of function stays exactly the same
 
 def run_ceo_agent(startup_idea: str) -> dict:
     """

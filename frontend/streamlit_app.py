@@ -42,7 +42,7 @@ st.markdown('<p class="main-header">🚀 AI Startup Builder</p>', unsafe_allow_h
 st.markdown('<p class="sub-header">Enter your idea. Our AI agents will build your complete startup plan.</p>', unsafe_allow_html=True)
 
 # Backend URL
-BACKEND_URL = "http://127.0.0.1:8000"
+BACKEND_URL = "https://ai-startup-builder-production.up.railway.app"
 
 # Input section
 st.markdown("---")
@@ -89,14 +89,14 @@ if generate_btn:
                 st.markdown(f"**{agent}**\n\n{status}")
 
         # Call orchestrator
-        status_text.text("🔄 Running all agents + evaluation pipeline... this may take 2-3 minutes. Please wait ⏳")
+        status_text.text("🔄 Running all agents... this may take 30-60 seconds")
         progress_bar.progress(20)
 
         try:
             response = requests.post(
                 f"{BACKEND_URL}/api/v1/generate/all",
                 json={"idea": idea},
-                timeout=300  # 5 minutes
+                timeout=120
             )
 
             progress_bar.progress(100)
@@ -115,56 +115,6 @@ if generate_btn:
                     st.metric("Successful", data.get("successful", 0))
                 with col3:
                     st.metric("Failed", data.get("failed", 0))
-
-                # ✅ Eval scores section
-                evals = data.get("evaluations", {})
-                if evals and "agent_evals" in evals:
-                    st.markdown("---")
-                    st.markdown("### 📊 Agent Quality Scores")
-
-                    system_score = evals.get("system_score", 0)
-                    passed = evals.get("passed", 0)
-                    total_evaluated = evals.get("total_evaluated", 0)
-
-                    score_color = "green" if system_score >= 7 else "orange" if system_score >= 5 else "red"
-
-                    scol1, scol2, scol3 = st.columns(3)
-                    with scol1:
-                        st.metric("🏆 System Score", f"{system_score}/10")
-                    with scol2:
-                        st.metric("✅ Agents Passed", f"{passed}/{total_evaluated}")
-                    with scol3:
-                        quality = "Excellent" if system_score >= 8 else "Good" if system_score >= 6 else "Needs Work"
-                        st.metric("📈 Quality", quality)
-
-                    # Per agent scores
-                    st.markdown("#### Per Agent Scores")
-                    agent_evals = evals.get("agent_evals", {})
-                    score_cols = st.columns(len(agent_evals))
-
-                    for i, (agent, eval_data) in enumerate(agent_evals.items()):
-                        with score_cols[i]:
-                            score = eval_data.get("overall_score", 0)
-                            emoji = "🟢" if score >= 7 else "🟡" if score >= 5 else "🔴"
-                            st.metric(
-                                label=agent.upper(),
-                                value=f"{score}/10",
-                                delta=f"{emoji} {'Pass' if eval_data.get('passed') else 'Fail'}"
-                            )
-
-                    # Show detailed metrics in expander
-                    with st.expander("🔍 View Detailed Metrics"):
-                        for agent, eval_data in agent_evals.items():
-                            st.markdown(f"**{agent.upper()} Agent**")
-                            metrics = eval_data.get("metrics", {})
-                            if metrics:
-                                mcols = st.columns(5)
-                                for j, (metric, score) in enumerate(metrics.items()):
-                                    with mcols[j % 5]:
-                                        st.metric(metric.capitalize(), f"{round(score * 10, 1)}/10")
-                            if eval_data.get("reason"):
-                                st.caption(f"💬 {eval_data['reason']}")
-                            st.markdown("---")
 
                 st.markdown("---")
 
@@ -226,7 +176,7 @@ if generate_btn:
                 st.error(f"❌ Backend error: {response.status_code}")
 
         except requests.exceptions.Timeout:
-            st.error("⏱️ Request timed out. Please try again — evaluation pipeline can take up to 3 minutes.")
+            st.error("⏱️ Request timed out. The agents are taking too long. Try again.")
         except requests.exceptions.ConnectionError:
             st.error("🔌 Cannot connect to backend. Make sure FastAPI server is running on port 8000.")
         except Exception as e:

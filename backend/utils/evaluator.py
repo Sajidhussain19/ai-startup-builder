@@ -5,12 +5,13 @@ import os
 from datetime import datetime
 
 load_dotenv()
-client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
 def evaluate_agent_output(agent_name: str, input_idea: str, actual_output: str) -> dict:
     """
     Custom eval pipeline using GPT as judge
     """
+    client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+    
     print(f"📊 Evaluating {agent_name}...")
 
     prompt = f"""
@@ -52,11 +53,9 @@ def evaluate_agent_output(agent_name: str, input_idea: str, actual_output: str) 
         )
 
         raw = response.choices[0].message.content.strip()
-        # Clean JSON if wrapped in backticks
         raw = raw.replace("```json", "").replace("```", "").strip()
         scores = json.loads(raw)
 
-        # Calculate overall score out of 10
         metrics = ["relevancy", "completeness", "accuracy", "clarity", "actionability"]
         avg = sum(scores.get(m, 0) for m in metrics) / len(metrics)
         overall_score = round(avg * 10, 2)
@@ -99,7 +98,6 @@ def evaluate_all_agents(idea: str, results: dict) -> dict:
             status = "✅" if eval_result.get("passed") else "⚠️"
             print(f"{status} {agent_name}: {eval_result['overall_score']}/10")
 
-    # System wide score
     all_scores = [r["overall_score"] for r in eval_results.values() if "overall_score" in r]
     system_score = round(sum(all_scores) / len(all_scores), 2) if all_scores else 0
 

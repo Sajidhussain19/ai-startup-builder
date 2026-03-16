@@ -17,14 +17,14 @@ from pydantic import BaseModel
 from dotenv import load_dotenv
 import os
 
-# LangSmith monitoring
+# Load secrets from .env
+load_dotenv()
+
+# LangSmith monitoring - reads from environment
 os.environ["LANGCHAIN_TRACING_V2"] = os.getenv("LANGCHAIN_TRACING_V2", "false")
 os.environ["LANGCHAIN_API_KEY"] = os.getenv("LANGCHAIN_API_KEY", "")
 os.environ["LANGCHAIN_PROJECT"] = os.getenv("LANGCHAIN_PROJECT", "ai-startup-builder")
 os.environ["LANGCHAIN_ENDPOINT"] = os.getenv("LANGCHAIN_ENDPOINT", "https://api.smith.langchain.com")
-
-# Load secrets from .env
-load_dotenv()
 
 # Rate limiter setup
 limiter = Limiter(key_func=get_remote_address)

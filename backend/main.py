@@ -27,14 +27,6 @@ os.environ["LANGCHAIN_PROJECT"] = os.getenv("LANGCHAIN_PROJECT", "ai-startup-bui
 os.environ["LANGCHAIN_ENDPOINT"] = os.getenv("LANGCHAIN_ENDPOINT", "https://api.smith.langchain.com")
 
 
-@app.get("/api/v1/debug/env")
-async def debug_env(request: Request):
-    return {
-        "LANGCHAIN_TRACING_V2": os.getenv("LANGCHAIN_TRACING_V2"),
-        "LANGCHAIN_PROJECT": os.getenv("LANGCHAIN_PROJECT"),
-        "LANGCHAIN_API_KEY_SET": bool(os.getenv("LANGCHAIN_API_KEY")),
-        "OPENAI_KEY_SET": bool(os.getenv("OPENAI_API_KEY"))
-    }
 
 # Rate limiter setup
 limiter = Limiter(key_func=get_remote_address)
@@ -44,6 +36,16 @@ app = FastAPI(
     title="AI Startup Builder",
     version="1.0.0"
 )
+
+# Debug env vars - place after app is created
+@app.get("/api/v1/debug/env")
+async def debug_env(request: Request):
+    return {
+        "LANGCHAIN_TRACING_V2": os.getenv("LANGCHAIN_TRACING_V2"),
+        "LANGCHAIN_PROJECT": os.getenv("LANGCHAIN_PROJECT"),
+        "LANGCHAIN_API_KEY_SET": bool(os.getenv("LANGCHAIN_API_KEY")),
+        "OPENAI_KEY_SET": bool(os.getenv("OPENAI_API_KEY"))
+    }
 
 # Attach rate limiter
 app.state.limiter = limiter

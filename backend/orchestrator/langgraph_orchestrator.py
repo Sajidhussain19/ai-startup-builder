@@ -15,23 +15,16 @@ import operator
 # ============================================
 
 class StartupState(TypedDict):
-    # Input
     idea: str
-
-    # Agent outputs
     ceo_output: str
     research_output: str
     marketing_output: str
     finance_output: str
     developer_output: str
     pitch_output: str
-
-    # Tracking
     errors: Annotated[list, operator.add]
     completed_agents: Annotated[list, operator.add]
     current_steps: Annotated[list, operator.add]
-
-    # Final outputs
     evaluations: dict
     saved_to: str
 
@@ -50,7 +43,6 @@ def ceo_node(state: StartupState) -> dict:
             "current_steps": ["ceo_done"]
         }
     except Exception as e:
-        print(f"❌ CEO Agent failed: {e}")
         return {
             "ceo_output": "",
             "errors": [f"CEO Agent failed: {str(e)}"],
@@ -68,7 +60,6 @@ def research_node(state: StartupState) -> dict:
             "current_steps": ["research_done"]
         }
     except Exception as e:
-        print(f"❌ Research Agent failed: {e}")
         return {
             "research_output": "",
             "errors": [f"Research Agent failed: {str(e)}"],
@@ -86,7 +77,6 @@ def finance_node(state: StartupState) -> dict:
             "current_steps": ["finance_done"]
         }
     except Exception as e:
-        print(f"❌ Finance Agent failed: {e}")
         return {
             "finance_output": "",
             "errors": [f"Finance Agent failed: {str(e)}"],
@@ -104,7 +94,6 @@ def marketing_node(state: StartupState) -> dict:
             "current_steps": ["marketing_done"]
         }
     except Exception as e:
-        print(f"❌ Marketing Agent failed: {e}")
         return {
             "marketing_output": "",
             "errors": [f"Marketing Agent failed: {str(e)}"],
@@ -122,7 +111,6 @@ def developer_node(state: StartupState) -> dict:
             "current_steps": ["developer_done"]
         }
     except Exception as e:
-        print(f"❌ Developer Agent failed: {e}")
         return {
             "developer_output": "",
             "errors": [f"Developer Agent failed: {str(e)}"],
@@ -140,7 +128,6 @@ def pitch_node(state: StartupState) -> dict:
             "current_steps": ["pitch_done"]
         }
     except Exception as e:
-        print(f"❌ Pitch Agent failed: {e}")
         return {
             "pitch_output": "",
             "errors": [f"Pitch Agent failed: {str(e)}"],
@@ -207,16 +194,12 @@ def should_continue_after_ceo(state: StartupState) -> str:
 
 
 # ============================================
-# STEP 4 — BUILD CLEAN SEQUENTIAL GRAPH
-# ✅ No fan-in issues
-# ✅ Still uses LangGraph state + conditional routing
-# ✅ Clean single execution path
+# STEP 4 — BUILD GRAPH
 # ============================================
 
 def build_startup_graph():
     workflow = StateGraph(StartupState)
 
-    # Add all nodes
     workflow.add_node("ceo", ceo_node)
     workflow.add_node("research", research_node)
     workflow.add_node("finance", finance_node)
@@ -226,10 +209,8 @@ def build_startup_graph():
     workflow.add_node("evaluator", evaluator_node)
     workflow.add_node("save", save_node)
 
-    # Entry point
     workflow.set_entry_point("ceo")
 
-    # ✅ CEO → Research (or pitch if failed)
     workflow.add_conditional_edges(
         "ceo",
         should_continue_after_ceo,
@@ -239,8 +220,6 @@ def build_startup_graph():
         }
     )
 
-    # ✅ Clean sequential path — zero duplicates
-    # CEO → Research → Finance → Marketing → Developer → Pitch
     workflow.add_edge("research", "finance")
     workflow.add_edge("finance", "marketing")
     workflow.add_edge("marketing", "developer")
@@ -280,7 +259,11 @@ def run_langgraph_agents(startup_idea: str) -> dict:
         "saved_to": ""
     }
 
-    final_state = startup_graph.invoke(initial_state)
+    # ✅ run_name makes idea visible in LangSmith traces
+    final_state = startup_graph.invoke(
+        initial_state,
+        config={"run_name": f"Startup: {startup_idea[:40]}"}
+    )
 
     print("=" * 50)
     print("🎉 LangGraph workflow complete!")

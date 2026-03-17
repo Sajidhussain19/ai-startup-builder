@@ -81,18 +81,26 @@ async def generate_logo(request: Request, body: StartupRequest):
     except ValueError as e:
         return {"error": str(e)}
 
-    # Run CEO agent first to extract startup name
+    # Run CEO agent to get startup name
     ceo_result = run_ceo_agent(clean_idea)
     ceo_output = ceo_result.get("output", "")
 
-    # Extract startup name from CEO output
+    # Improved name extraction
     startup_name = "AI Startup"
-    for line in ceo_output.split("\n"):
-        if "STARTUP NAME" in line.upper() or "**" in line:
-            name = line.replace("**", "").replace("#", "").strip()
-            if name and len(name) < 50 and len(name) > 2:
-                startup_name = name
-                break
+    lines = ceo_output.split("\n")
+    for i, line in enumerate(lines):
+        if "STARTUP NAME" in line.upper():
+            # Check current line and next 3 lines for the actual name
+            for j in range(i, min(i + 4, len(lines))):
+                candidate = lines[j]
+                candidate = candidate.replace("**", "").replace("#", "")
+                candidate = candidate.replace("1.", "").replace("*", "")
+                candidate = candidate.replace("STARTUP NAME", "").replace(":", "")
+                candidate = candidate.strip()
+                if candidate and len(candidate) > 2 and len(candidate) < 40:
+                    startup_name = candidate
+                    break
+            break
 
     result = run_logo_agent(startup_name, clean_idea)
     result["startup_name"] = startup_name

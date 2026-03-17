@@ -14,6 +14,7 @@ from orchestrator.orchestrator import run_all_agents
 from utils.evaluator import evaluate_agent_output
 from orchestrator.langgraph_orchestrator import run_langgraph_agents
 from pydantic import BaseModel
+from agents.logo_agent import run_logo_agent
 from dotenv import load_dotenv
 import os
 
@@ -72,6 +73,17 @@ async def health_check(request: Request):
         "version": "1.0.0",
         "message": "AI Startup Builder is alive!"
     }
+
+@app.post("/api/v1/generate/logo")
+@limiter.limit("3/minute")
+async def generate_logo(request: Request, body: StartupRequest):
+    try:
+        clean_idea = sanitize_input(body.idea)
+    except ValueError as e:
+        return {"error": str(e)}
+
+    result = run_logo_agent("AI Startup", clean_idea)
+    return result
 
 # CEO Agent route
 @app.post("/api/v1/generate/ceo")

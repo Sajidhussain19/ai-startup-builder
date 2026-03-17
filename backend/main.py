@@ -10,15 +10,15 @@ from agents.marketing_agent import run_marketing_agent
 from agents.finance_agent import run_finance_agent
 from agents.developer_agent import run_developer_agent
 from agents.pitch_agent import run_pitch_agent
+from agents.logo_agent import run_logo_agent
 from orchestrator.orchestrator import run_all_agents
 from utils.evaluator import evaluate_agent_output
 from orchestrator.langgraph_orchestrator import run_langgraph_agents
 from pydantic import BaseModel
-from agents.logo_agent import run_logo_agent
 from dotenv import load_dotenv
 import os
 
-# Load secrets from .env
+# Load secrets from .env FIRST
 load_dotenv()
 
 # LangSmith monitoring - reads from environment
@@ -26,8 +26,6 @@ os.environ["LANGCHAIN_TRACING_V2"] = os.getenv("LANGCHAIN_TRACING_V2", "false")
 os.environ["LANGCHAIN_API_KEY"] = os.getenv("LANGCHAIN_API_KEY", "")
 os.environ["LANGCHAIN_PROJECT"] = os.getenv("LANGCHAIN_PROJECT", "ai-startup-builder")
 os.environ["LANGCHAIN_ENDPOINT"] = os.getenv("LANGCHAIN_ENDPOINT", "https://api.smith.langchain.com")
-
-
 
 # Rate limiter setup
 limiter = Limiter(key_func=get_remote_address)
@@ -37,16 +35,6 @@ app = FastAPI(
     title="AI Startup Builder",
     version="1.0.0"
 )
-
-# Debug env vars - place after app is created
-@app.get("/api/v1/debug/env")
-async def debug_env(request: Request):
-    return {
-        "LANGCHAIN_TRACING_V2": os.getenv("LANGCHAIN_TRACING_V2"),
-        "LANGCHAIN_PROJECT": os.getenv("LANGCHAIN_PROJECT"),
-        "LANGCHAIN_API_KEY_SET": bool(os.getenv("LANGCHAIN_API_KEY")),
-        "OPENAI_KEY_SET": bool(os.getenv("OPENAI_API_KEY"))
-    }
 
 # Attach rate limiter
 app.state.limiter = limiter
@@ -60,7 +48,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# ✅ Request body model
+# Request body model
 class StartupRequest(BaseModel):
     idea: str
 
@@ -74,6 +62,17 @@ async def health_check(request: Request):
         "message": "AI Startup Builder is alive!"
     }
 
+# Debug env vars
+@app.get("/api/v1/debug/env")
+async def debug_env(request: Request):
+    return {
+        "LANGCHAIN_TRACING_V2": os.getenv("LANGCHAIN_TRACING_V2"),
+        "LANGCHAIN_PROJECT": os.getenv("LANGCHAIN_PROJECT"),
+        "LANGCHAIN_API_KEY_SET": bool(os.getenv("LANGCHAIN_API_KEY")),
+        "OPENAI_KEY_SET": bool(os.getenv("OPENAI_API_KEY"))
+    }
+
+# Logo Agent route - DALL-E 3
 @app.post("/api/v1/generate/logo")
 @limiter.limit("3/minute")
 async def generate_logo(request: Request, body: StartupRequest):
@@ -82,20 +81,32 @@ async def generate_logo(request: Request, body: StartupRequest):
     except ValueError as e:
         return {"error": str(e)}
 
-    result = run_logo_agent("AI Startup", clean_idea)
+    # Run CEO agent first to extract startup name
+    ceo_result = run_ceo_agent(clean_idea)
+    ceo_output = ceo_result.get("output", "")
+
+    # Extract startup name from CEO output
+    startup_name = "AI Startup"
+    for line in ceo_output.split("\n"):
+        if "STARTUP NAME" in line.upper() or "**" in line:
+            name = line.replace("**", "").replace("#", "").strip()
+            if name and len(name) < 50 and len(name) > 2:
+                startup_name = name
+                break
+
+    result = run_logo_agent(startup_name, clean_idea)
+    result["startup_name"] = startup_name
     return result
 
 # CEO Agent route
 @app.post("/api/v1/generate/ceo")
 @limiter.limit("5/minute")
 async def generate_ceo_strategy(request: Request, body: StartupRequest):
-    # Security - sanitize input
     try:
         clean_idea = sanitize_input(body.idea)
     except ValueError as e:
         return {"error": str(e)}
 
-    # Run CEO agent
     result = run_ceo_agent(clean_idea)
     return result
 
@@ -168,14 +179,13 @@ async def generate_full_startup(request: Request, body: StartupRequest):
     except ValueError as e:
         return {"error": str(e)}
 
-    print(f"\n📥 Full startup generation request: {clean_idea}")
     result = run_all_agents(clean_idea)
     return result
 
 # Orchestrator - runs ALL agents at once
 @app.post("/api/v1/generate/all")
 @limiter.limit("2/minute")
-async def generate_full_startup(request: Request, body: StartupRequest):
+async def generate_all_startup(request: Request, body: StartupRequest):
     try:
         clean_idea = sanitize_input(body.idea)
     except ValueError as e:

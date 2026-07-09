@@ -42,7 +42,7 @@ st.markdown('<p class="main-header">🚀 AI Startup Builder</p>', unsafe_allow_h
 st.markdown('<p class="sub-header">Enter your idea. Our AI agents will build your complete startup plan.</p>', unsafe_allow_html=True)
 
 # Backend URL
-BACKEND_URL = "https://ai-startup-builder-production.up.railway.app"
+BACKEND_URL = "https://ai-startup-builder-backend.onrender.com"
 
 # Input section
 st.markdown("---")

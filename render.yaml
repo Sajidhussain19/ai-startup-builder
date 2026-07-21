@@ -8,6 +8,12 @@ services:
     envVars:
       - key: OPENAI_API_KEY
         sync: false
+      - key: APP_ACCESS_TOKEN
+        sync: false
+      - key: ADMIN_API_TOKEN
+        sync: false
+      - key: DAILY_GENERATION_LIMIT
+        value: "20"
       - key: LANGCHAIN_TRACING_V2
         value: "false"
       - key: LANGSMITH_TRACING
@@ -39,3 +45,9 @@ services:
           type: web
           name: ai-startup-builder-backend
           property: hostport
+      - key: BACKEND_API_TOKEN
+        sync: false
+      - key: OBSERVABILITY_ADMIN_TOKEN
+        sync: false
+      - key: FRONTEND_PASSWORD
+        sync: false

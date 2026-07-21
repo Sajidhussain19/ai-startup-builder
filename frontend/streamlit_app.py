@@ -45,10 +45,37 @@ st.markdown('<p class="sub-header">Enter your idea. Our AI agents will build you
 # Backend URL
 backend_raw_url = os.getenv("BACKEND_URL", "https://ai-startup-builder-backend.onrender.com").rstrip("/")
 BACKEND_URL = backend_raw_url if backend_raw_url.startswith(("http://", "https://")) else f"http://{backend_raw_url}"
+BACKEND_API_TOKEN = os.getenv("BACKEND_API_TOKEN", "")
+OBSERVABILITY_ADMIN_TOKEN = os.getenv("OBSERVABILITY_ADMIN_TOKEN", os.getenv("BACKEND_API_TOKEN", ""))
+FRONTEND_PASSWORD = os.getenv("FRONTEND_PASSWORD", "")
+
+
+if FRONTEND_PASSWORD:
+    if "authenticated" not in st.session_state:
+        st.session_state.authenticated = False
+
+    if not st.session_state.authenticated:
+        st.markdown("### AI Startup Builder")
+        password = st.text_input("Access password", type="password")
+        if st.button("Unlock", type="primary"):
+            if password == FRONTEND_PASSWORD:
+                st.session_state.authenticated = True
+                st.rerun()
+            else:
+                st.error("Invalid password.")
+        st.stop()
+
+
+def app_headers() -> dict:
+    return {"X-App-Token": BACKEND_API_TOKEN} if BACKEND_API_TOKEN else {}
+
+
+def admin_headers() -> dict:
+    return {"X-Admin-Token": OBSERVABILITY_ADMIN_TOKEN} if OBSERVABILITY_ADMIN_TOKEN else app_headers()
 
 
 def get_json(path: str, timeout: int = 20):
-    response = requests.get(f"{BACKEND_URL}{path}", timeout=timeout)
+    response = requests.get(f"{BACKEND_URL}{path}", headers=admin_headers(), timeout=timeout)
     response.raise_for_status()
     return response.json()
 
@@ -104,6 +131,7 @@ if generate_btn:
             response = requests.post(
                 f"{BACKEND_URL}/api/v1/generate/all",
                 json={"idea": idea},
+                headers=app_headers(),
                 timeout=120
             )
 

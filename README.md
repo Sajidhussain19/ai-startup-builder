@@ -47,6 +47,9 @@ Backend:
 
 ```text
 OPENAI_API_KEY=your_openai_api_key
+APP_ACCESS_TOKEN=shared_backend_access_token
+ADMIN_API_TOKEN=admin_observability_token
+DAILY_GENERATION_LIMIT=20
 LANGCHAIN_TRACING_V2=false
 LANGSMITH_TRACING=false
 LANGCHAIN_PROJECT=ai-startup-builder
@@ -66,6 +69,9 @@ Frontend:
 
 ```text
 BACKEND_URL=https://your-backend-service.onrender.com
+BACKEND_API_TOKEN=same_value_as_app_access_token
+OBSERVABILITY_ADMIN_TOKEN=same_value_as_admin_api_token
+FRONTEND_PASSWORD=optional_password_for_streamlit_ui
 ```
 
 When deployed through `render.yaml`, `BACKEND_URL` is wired automatically from the backend service.
@@ -202,4 +208,39 @@ GPT_4O_MINI_INPUT_PER_1M=0.15
 GPT_4O_MINI_OUTPUT_PER_1M=0.60
 GPT_41_MINI_INPUT_PER_1M=0.40
 GPT_41_MINI_OUTPUT_PER_1M=1.60
+```
+
+## Production Access Controls
+
+The app includes optional production protections. They are disabled until the env vars are set.
+
+Backend generation endpoints require `X-App-Token` when `APP_ACCESS_TOKEN` is configured.
+
+Protected admin endpoints require `X-Admin-Token` when `ADMIN_API_TOKEN` is configured:
+
+- `/api/v1/observability/summary`
+- `/api/v1/observability/recent`
+- `/api/v1/eval/agent`
+- `/api/v1/debug/env`
+
+Daily quota is enforced per caller IP with `DAILY_GENERATION_LIMIT`.
+
+Quota units:
+
+- Single agent generation: 1 unit
+- Logo generation: 2 units
+- Full/LangGraph generation: 6 units
+
+For Render, set matching values:
+
+```text
+Backend service:
+APP_ACCESS_TOKEN=<random secret>
+ADMIN_API_TOKEN=<different random secret>
+DAILY_GENERATION_LIMIT=20
+
+Frontend service:
+BACKEND_API_TOKEN=<same as APP_ACCESS_TOKEN>
+OBSERVABILITY_ADMIN_TOKEN=<same as ADMIN_API_TOKEN>
+FRONTEND_PASSWORD=<password users type into the Streamlit UI>
 ```

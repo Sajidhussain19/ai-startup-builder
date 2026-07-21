@@ -19,6 +19,7 @@ from agents.pitch_agent import run_pitch_agent
 from agents.logo_agent import run_logo_agent
 from llm.usage_store import get_recent_usage, get_usage_summary, init_usage_db
 from orchestrator.orchestrator import run_all_agents
+from utils.access_control import enforce_daily_quota, init_access_db, require_admin_access, require_app_access
 from utils.evaluator import evaluate_agent_output
 from orchestrator.langgraph_orchestrator import run_langgraph_agents
 from pydantic import BaseModel
@@ -48,6 +49,7 @@ app = FastAPI(
 )
 
 init_usage_db()
+init_access_db()
 
 # Attach rate limiter
 app.state.limiter = limiter
@@ -73,6 +75,13 @@ def sanitize_idea_or_raise(idea: str) -> str:
         raise HTTPException(status_code=400, detail=str(e))
 
 
+def prepare_generation_request(request: Request, idea: str, units: int = 1) -> str:
+    require_app_access(request)
+    clean_idea = sanitize_idea_or_raise(idea)
+    enforce_daily_quota(request, units=units)
+    return clean_idea
+
+
 # Health check route
 @app.get("/api/v1/health")
 @limiter.limit("10/minute")
@@ -88,17 +97,20 @@ async def health_check(request: Request):
 @app.get("/api/v1/observability/summary")
 @limiter.limit("20/minute")
 async def observability_summary(request: Request):
+    require_admin_access(request)
     return get_usage_summary()
 
 
 @app.get("/api/v1/observability/recent")
 @limiter.limit("20/minute")
 async def observability_recent(request: Request, limit: int = 50):
+    require_admin_access(request)
     return {"items": get_recent_usage(limit)}
 
 # Debug env vars
 @app.get("/api/v1/debug/env")
 async def debug_env(request: Request):
+    require_admin_access(request)
     if os.getenv("ENABLE_DEBUG_ENV", "false").lower() != "true":
         raise HTTPException(status_code=404, detail="Not found")
 
@@ -113,7 +125,7 @@ async def debug_env(request: Request):
 @app.post("/api/v1/generate/logo")
 @limiter.limit("3/minute")
 async def generate_logo(request: Request, body: StartupRequest):
-    clean_idea = sanitize_idea_or_raise(body.idea)
+    clean_idea = prepare_generation_request(request, body.idea, units=2)
 
     # Run CEO agent to get startup name
     ceo_result = run_ceo_agent(clean_idea)
@@ -144,7 +156,7 @@ async def generate_logo(request: Request, body: StartupRequest):
 @app.post("/api/v1/generate/ceo")
 @limiter.limit("5/minute")
 async def generate_ceo_strategy(request: Request, body: StartupRequest):
-    clean_idea = sanitize_idea_or_raise(body.idea)
+    clean_idea = prepare_generation_request(request, body.idea)
 
     result = run_ceo_agent(clean_idea)
     return result
@@ -153,7 +165,7 @@ async def generate_ceo_strategy(request: Request, body: StartupRequest):
 @app.post("/api/v1/generate/research")
 @limiter.limit("5/minute")
 async def generate_research(request: Request, body: StartupRequest):
-    clean_idea = sanitize_idea_or_raise(body.idea)
+    clean_idea = prepare_generation_request(request, body.idea)
 
     result = run_research_agent(clean_idea)
     return result
@@ -162,7 +174,7 @@ async def generate_research(request: Request, body: StartupRequest):
 @app.post("/api/v1/generate/marketing")
 @limiter.limit("5/minute")
 async def generate_marketing(request: Request, body: StartupRequest):
-    clean_idea = sanitize_idea_or_raise(body.idea)
+    clean_idea = prepare_generation_request(request, body.idea)
 
     result = run_marketing_agent(clean_idea)
     return result
@@ -171,7 +183,7 @@ async def generate_marketing(request: Request, body: StartupRequest):
 @app.post("/api/v1/generate/finance")
 @limiter.limit("5/minute")
 async def generate_finance(request: Request, body: StartupRequest):
-    clean_idea = sanitize_idea_or_raise(body.idea)
+    clean_idea = prepare_generation_request(request, body.idea)
 
     result = run_finance_agent(clean_idea)
     return result
@@ -180,7 +192,7 @@ async def generate_finance(request: Request, body: StartupRequest):
 @app.post("/api/v1/generate/developer")
 @limiter.limit("5/minute")
 async def generate_developer(request: Request, body: StartupRequest):
-    clean_idea = sanitize_idea_or_raise(body.idea)
+    clean_idea = prepare_generation_request(request, body.idea)
 
     result = run_developer_agent(clean_idea)
     return result
@@ -189,7 +201,7 @@ async def generate_developer(request: Request, body: StartupRequest):
 @app.post("/api/v1/generate/pitch")
 @limiter.limit("5/minute")
 async def generate_pitch(request: Request, body: StartupRequest):
-    clean_idea = sanitize_idea_or_raise(body.idea)
+    clean_idea = prepare_generation_request(request, body.idea)
 
     result = run_pitch_agent(clean_idea)
     return result
@@ -198,7 +210,7 @@ async def generate_pitch(request: Request, body: StartupRequest):
 @app.post("/api/v1/generate/full")
 @limiter.limit("2/minute")
 async def generate_full_startup(request: Request, body: StartupRequest):
-    clean_idea = sanitize_idea_or_raise(body.idea)
+    clean_idea = prepare_generation_request(request, body.idea, units=6)
 
     result = run_all_agents(clean_idea)
     return result
@@ -207,7 +219,7 @@ async def generate_full_startup(request: Request, body: StartupRequest):
 @app.post("/api/v1/generate/all")
 @limiter.limit("2/minute")
 async def generate_all_startup(request: Request, body: StartupRequest):
-    clean_idea = sanitize_idea_or_raise(body.idea)
+    clean_idea = prepare_generation_request(request, body.idea, units=6)
 
     result = run_all_agents(clean_idea)
     return result
@@ -216,6 +228,7 @@ async def generate_all_startup(request: Request, body: StartupRequest):
 @app.post("/api/v1/eval/agent")
 @limiter.limit("10/minute")
 async def eval_agent(request: Request, body: dict):
+    require_admin_access(request)
     idea = body.get("idea", "")
     agent_name = body.get("agent_name", "")
     output = body.get("output", "")
@@ -227,7 +240,7 @@ async def eval_agent(request: Request, body: dict):
 @app.post("/api/v1/generate/langgraph")
 @limiter.limit("2/minute")
 async def generate_langgraph(request: Request, body: StartupRequest):
-    clean_idea = sanitize_idea_or_raise(body.idea)
+    clean_idea = prepare_generation_request(request, body.idea, units=6)
 
     result = run_langgraph_agents(clean_idea)
     return result

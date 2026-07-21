@@ -1,7 +1,9 @@
 from openai import OpenAI
 from dotenv import load_dotenv
+from llm.usage_store import record_usage
 from utils.guardrails import safe_prompt_value
 import os
+import time
 
 load_dotenv()
 
@@ -29,12 +31,21 @@ def run_logo_agent(startup_name: str, startup_idea: str) -> dict:
     """
 
     try:
+        started_at = time.perf_counter()
         response = client.images.generate(
             model="dall-e-3",
             prompt=prompt,
             size="1024x1024",
             quality="standard",
             n=1
+        )
+        latency_ms = int((time.perf_counter() - started_at) * 1000)
+        record_usage(
+            agent_name="Logo Agent",
+            model="dall-e-3",
+            fallback_used=False,
+            status="success",
+            latency_ms=latency_ms,
         )
 
         image_url = response.data[0].url
@@ -43,10 +54,19 @@ def run_logo_agent(startup_name: str, startup_idea: str) -> dict:
             "agent": "Logo Agent",
             "status": "completed",
             "startup_name": startup_name,
-            "logo_url": image_url
+            "logo_url": image_url,
+            "model": "dall-e-3",
+            "latency_ms": latency_ms
         }
 
     except Exception as e:
+        record_usage(
+            agent_name="Logo Agent",
+            model="dall-e-3",
+            fallback_used=False,
+            status="failed",
+            error=str(e),
+        )
         return {
             "agent": "Logo Agent",
             "status": "failed",

@@ -1,7 +1,6 @@
-from openai import OpenAI
 from dotenv import load_dotenv
+from llm.gateway import chat_completion
 from utils.guardrails import apply_output_guardrails, build_guardrailed_messages
-import os
 
 load_dotenv()
 
@@ -9,8 +8,6 @@ def run_research_agent(startup_idea: str) -> dict:
     """
     Research Agent - Performs market analysis and competitor research
     """
-    client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
-    
     print(f"🔬 Research Agent working on: {startup_idea}")
 
     prompt = f"""
@@ -32,8 +29,8 @@ def run_research_agent(startup_idea: str) -> dict:
     Be specific and analytical.
     """
 
-    response = client.chat.completions.create(
-        model="gpt-4o-mini",
+    llm_result = chat_completion(
+        agent_name="Research Agent",
         messages=build_guardrailed_messages(
             "You are an expert market research analyst with deep knowledge of startup ecosystems and market dynamics.",
             prompt
@@ -42,11 +39,16 @@ def run_research_agent(startup_idea: str) -> dict:
         temperature=0.7
     )
 
-    result = response.choices[0].message.content
+    result = llm_result["content"]
     guarded = apply_output_guardrails("Research Agent", result)
 
     return {
         "agent": "Research Agent",
         "status": guarded["status"],
-        "output": guarded["output"]
+        "output": guarded["output"],
+        "model": llm_result["model"],
+        "fallback_used": llm_result["fallback_used"],
+        "usage": llm_result["usage"],
+        "cost": llm_result["cost"],
+        "latency_ms": llm_result["latency_ms"]
     }

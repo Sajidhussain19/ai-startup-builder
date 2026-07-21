@@ -1,8 +1,7 @@
 
-from openai import OpenAI
 from dotenv import load_dotenv
+from llm.gateway import chat_completion
 from utils.guardrails import apply_output_guardrails, build_guardrailed_messages
-import os
 
 load_dotenv()
 
@@ -10,8 +9,6 @@ def run_ceo_agent(startup_idea: str) -> dict:
     """
     CEO Agent - Creates startup strategy and business model
     """
-    client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
-    
     print(f"🤖 CEO Agent working on: {startup_idea}")
 
     prompt = f"""
@@ -32,8 +29,8 @@ def run_ceo_agent(startup_idea: str) -> dict:
     Be specific, practical and concise.
     """
 
-    response = client.chat.completions.create(
-        model="gpt-4o-mini",
+    llm_result = chat_completion(
+        agent_name="CEO Agent",
         messages=build_guardrailed_messages(
             "You are an expert startup CEO. Give clear, structured, actionable startup strategies.",
             prompt
@@ -42,11 +39,16 @@ def run_ceo_agent(startup_idea: str) -> dict:
         temperature=0.7
     )
 
-    result = response.choices[0].message.content
+    result = llm_result["content"]
     guarded = apply_output_guardrails("CEO Agent", result)
 
     return {
         "agent": "CEO Agent",
         "status": guarded["status"],
-        "output": guarded["output"]
+        "output": guarded["output"],
+        "model": llm_result["model"],
+        "fallback_used": llm_result["fallback_used"],
+        "usage": llm_result["usage"],
+        "cost": llm_result["cost"],
+        "latency_ms": llm_result["latency_ms"]
     }

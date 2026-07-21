@@ -17,6 +17,7 @@ from agents.finance_agent import run_finance_agent
 from agents.developer_agent import run_developer_agent
 from agents.pitch_agent import run_pitch_agent
 from agents.logo_agent import run_logo_agent
+from llm.usage_store import get_recent_usage, get_usage_summary, init_usage_db
 from orchestrator.orchestrator import run_all_agents
 from utils.evaluator import evaluate_agent_output
 from orchestrator.langgraph_orchestrator import run_langgraph_agents
@@ -29,9 +30,13 @@ load_dotenv()
 
 # LangSmith monitoring - reads from environment
 os.environ["LANGCHAIN_TRACING_V2"] = os.getenv("LANGCHAIN_TRACING_V2", "false")
-os.environ["LANGCHAIN_API_KEY"] = os.getenv("LANGCHAIN_API_KEY", "")
-os.environ["LANGCHAIN_PROJECT"] = os.getenv("LANGCHAIN_PROJECT", "ai-startup-builder")
-os.environ["LANGCHAIN_ENDPOINT"] = os.getenv("LANGCHAIN_ENDPOINT", "https://api.smith.langchain.com")
+os.environ["LANGSMITH_TRACING"] = os.getenv("LANGSMITH_TRACING", os.getenv("LANGCHAIN_TRACING_V2", "false"))
+os.environ["LANGCHAIN_API_KEY"] = os.getenv("LANGCHAIN_API_KEY", os.getenv("LANGSMITH_API_KEY", ""))
+os.environ["LANGSMITH_API_KEY"] = os.getenv("LANGSMITH_API_KEY", os.getenv("LANGCHAIN_API_KEY", ""))
+os.environ["LANGCHAIN_PROJECT"] = os.getenv("LANGCHAIN_PROJECT", os.getenv("LANGSMITH_PROJECT", "ai-startup-builder"))
+os.environ["LANGSMITH_PROJECT"] = os.getenv("LANGSMITH_PROJECT", os.getenv("LANGCHAIN_PROJECT", "ai-startup-builder"))
+os.environ["LANGCHAIN_ENDPOINT"] = os.getenv("LANGCHAIN_ENDPOINT", os.getenv("LANGSMITH_ENDPOINT", "https://api.smith.langchain.com"))
+os.environ["LANGSMITH_ENDPOINT"] = os.getenv("LANGSMITH_ENDPOINT", os.getenv("LANGCHAIN_ENDPOINT", "https://api.smith.langchain.com"))
 
 # Rate limiter setup
 limiter = Limiter(key_func=get_remote_address)
@@ -41,6 +46,8 @@ app = FastAPI(
     title="AI Startup Builder",
     version="1.0.0"
 )
+
+init_usage_db()
 
 # Attach rate limiter
 app.state.limiter = limiter
@@ -73,8 +80,21 @@ async def health_check(request: Request):
     return {
         "status": "running",
         "version": "1.0.0",
-        "message": "AI Startup Builder is alive!"
+        "message": "AI Startup Builder is alive!",
+        "observability": "enabled"
     }
+
+
+@app.get("/api/v1/observability/summary")
+@limiter.limit("20/minute")
+async def observability_summary(request: Request):
+    return get_usage_summary()
+
+
+@app.get("/api/v1/observability/recent")
+@limiter.limit("20/minute")
+async def observability_recent(request: Request, limit: int = 50):
+    return {"items": get_recent_usage(limit)}
 
 # Debug env vars
 @app.get("/api/v1/debug/env")

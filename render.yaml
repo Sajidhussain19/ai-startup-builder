@@ -10,10 +10,22 @@ services:
         sync: false
       - key: LANGCHAIN_TRACING_V2
         value: "false"
+      - key: LANGSMITH_TRACING
+        value: "false"
       - key: LANGCHAIN_PROJECT
+        value: ai-startup-builder
+      - key: LANGSMITH_PROJECT
         value: ai-startup-builder
       - key: ENABLE_DEBUG_ENV
         value: "false"
+      - key: PRIMARY_LLM_MODEL
+        value: gpt-4o-mini
+      - key: FALLBACK_LLM_MODEL
+        value: gpt-4.1-mini
+      - key: ENABLE_LLM_FALLBACK
+        value: "true"
+      - key: LLM_TIMEOUT_SECONDS
+        value: "45"
 
   - type: web
     name: ai-startup-builder-frontend

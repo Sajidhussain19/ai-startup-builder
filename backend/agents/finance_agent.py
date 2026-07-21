@@ -1,7 +1,6 @@
-from openai import OpenAI
 from dotenv import load_dotenv
+from llm.gateway import chat_completion
 from utils.guardrails import apply_output_guardrails, build_guardrailed_messages
-import os
 
 load_dotenv()
 
@@ -9,8 +8,6 @@ def run_finance_agent(startup_idea: str) -> dict:
     """
     Finance Agent - Estimates startup cost and revenue model
     """
-    client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
-    
     print(f"💰 Finance Agent working on: {startup_idea}")
 
     prompt = f"""
@@ -31,8 +28,8 @@ def run_finance_agent(startup_idea: str) -> dict:
     Use realistic numbers. Be specific with dollar amounts.
     """
 
-    response = client.chat.completions.create(
-        model="gpt-4o-mini",
+    llm_result = chat_completion(
+        agent_name="Finance Agent",
         messages=build_guardrailed_messages(
             "You are an expert startup CFO and financial analyst with experience in early-stage startups.",
             prompt
@@ -41,11 +38,16 @@ def run_finance_agent(startup_idea: str) -> dict:
         temperature=0.7
     )
 
-    result = response.choices[0].message.content
+    result = llm_result["content"]
     guarded = apply_output_guardrails("Finance Agent", result)
 
     return {
         "agent": "Finance Agent",
         "status": guarded["status"],
-        "output": guarded["output"]
+        "output": guarded["output"],
+        "model": llm_result["model"],
+        "fallback_used": llm_result["fallback_used"],
+        "usage": llm_result["usage"],
+        "cost": llm_result["cost"],
+        "latency_ms": llm_result["latency_ms"]
     }

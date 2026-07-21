@@ -1,7 +1,6 @@
-from openai import OpenAI
 from dotenv import load_dotenv
+from llm.gateway import chat_completion
 import json
-import os
 from datetime import datetime
 
 load_dotenv()
@@ -10,8 +9,6 @@ def evaluate_agent_output(agent_name: str, input_idea: str, actual_output: str) 
     """
     Custom eval pipeline using GPT as judge
     """
-    client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
-    
     print(f"📊 Evaluating {agent_name}...")
 
     prompt = f"""
@@ -42,8 +39,8 @@ def evaluate_agent_output(agent_name: str, input_idea: str, actual_output: str) 
     """
 
     try:
-        response = client.chat.completions.create(
-            model="gpt-4o-mini",
+        llm_result = chat_completion(
+            agent_name=f"Evaluator: {agent_name}",
             messages=[
                 {"role": "system", "content": "You are an expert evaluator. Always respond with valid JSON only."},
                 {"role": "user", "content": prompt}
@@ -52,7 +49,7 @@ def evaluate_agent_output(agent_name: str, input_idea: str, actual_output: str) 
             temperature=0
         )
 
-        raw = response.choices[0].message.content.strip()
+        raw = llm_result["content"].strip()
         raw = raw.replace("```json", "").replace("```", "").strip()
         scores = json.loads(raw)
 

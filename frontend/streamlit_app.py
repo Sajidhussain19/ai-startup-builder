@@ -46,6 +46,12 @@ st.markdown('<p class="sub-header">Enter your idea. Our AI agents will build you
 backend_raw_url = os.getenv("BACKEND_URL", "https://ai-startup-builder-backend.onrender.com").rstrip("/")
 BACKEND_URL = backend_raw_url if backend_raw_url.startswith(("http://", "https://")) else f"http://{backend_raw_url}"
 
+
+def get_json(path: str, timeout: int = 20):
+    response = requests.get(f"{BACKEND_URL}{path}", timeout=timeout)
+    response.raise_for_status()
+    return response.json()
+
 # Input section
 st.markdown("---")
 col1, col2, col3 = st.columns([1, 2, 1])
@@ -187,6 +193,38 @@ if generate_btn:
             st.error("🔌 Cannot connect to backend. Make sure FastAPI server is running on port 8000.")
         except Exception as e:
             st.error(f"❌ Unexpected error: {str(e)}")
+
+st.markdown("---")
+st.markdown("### Observability Dashboard")
+
+obs_col1, obs_col2 = st.columns([1, 4])
+with obs_col1:
+    refresh_obs = st.button("Refresh", use_container_width=True)
+
+if refresh_obs:
+    try:
+        summary = get_json("/api/v1/observability/summary")
+        recent = get_json("/api/v1/observability/recent?limit=25")
+        totals = summary.get("totals", {})
+
+        metric_cols = st.columns(6)
+        metric_cols[0].metric("LLM Calls", int(totals.get("total_calls", 0)))
+        metric_cols[1].metric("Spend", f"${float(totals.get('total_cost_usd', 0)):.6f}")
+        metric_cols[2].metric("Tokens", int(totals.get("total_tokens", 0)))
+        metric_cols[3].metric("Avg Latency", f"{float(totals.get('avg_latency_ms', 0)):.0f} ms")
+        metric_cols[4].metric("Failures", int(totals.get("failed_calls", 0)))
+        metric_cols[5].metric("Fallbacks", int(totals.get("fallback_calls", 0)))
+
+        st.markdown("#### Spend By Agent")
+        st.dataframe(summary.get("by_agent", []), use_container_width=True, hide_index=True)
+
+        st.markdown("#### Spend By Model")
+        st.dataframe(summary.get("by_model", []), use_container_width=True, hide_index=True)
+
+        st.markdown("#### Recent LLM Calls")
+        st.dataframe(recent.get("items", []), use_container_width=True, hide_index=True)
+    except Exception as e:
+        st.error(f"Could not load observability data: {str(e)}")
 
 # Footer
 st.markdown("---")

@@ -48,10 +48,18 @@ Backend:
 ```text
 OPENAI_API_KEY=your_openai_api_key
 LANGCHAIN_TRACING_V2=false
+LANGSMITH_TRACING=false
 LANGCHAIN_PROJECT=ai-startup-builder
+LANGSMITH_PROJECT=ai-startup-builder
 LANGCHAIN_API_KEY=optional_langsmith_key
+LANGSMITH_API_KEY=optional_langsmith_key
 LANGCHAIN_ENDPOINT=https://api.smith.langchain.com
 ENABLE_DEBUG_ENV=false
+PRIMARY_LLM_MODEL=gpt-4o-mini
+FALLBACK_LLM_MODEL=gpt-4.1-mini
+ENABLE_LLM_FALLBACK=true
+LLM_TIMEOUT_SECONDS=45
+LLM_USAGE_DB_PATH=optional_custom_sqlite_path
 ```
 
 Frontend:
@@ -133,6 +141,8 @@ POST /api/v1/generate/all
 POST /api/v1/generate/full
 POST /api/v1/generate/langgraph
 POST /api/v1/eval/agent
+GET  /api/v1/observability/summary
+GET  /api/v1/observability/recent
 ```
 
 Request body:
@@ -154,3 +164,42 @@ docker build -t ai-startup-builder-backend-check .
 ```
 
 Then run the Docker image and confirm `/api/v1/health` returns `200`.
+
+## Observability And Cost Tracking
+
+All text-generation agents use `backend/llm/gateway.py`.
+
+The gateway provides:
+
+- LangSmith trace boundaries for LLM calls
+- Primary and fallback model selection
+- Request timeout configuration
+- Token usage capture from OpenAI responses
+- Estimated USD cost tracking
+- SQLite persistence in `backend/data/llm_usage.db` by default
+
+The Streamlit app includes an observability dashboard with:
+
+- Total LLM calls
+- Estimated spend
+- Token usage
+- Average latency
+- Failure count
+- Fallback count
+- Spend by agent
+- Spend by model
+- Recent LLM calls
+
+Pricing defaults are based on official OpenAI model pricing checked on 2026-07-21:
+
+- `gpt-4o-mini`: $0.15 per 1M input tokens, $0.60 per 1M output tokens
+- `gpt-4.1-mini`: $0.40 per 1M input tokens, $1.60 per 1M output tokens
+
+Override pricing without code changes using:
+
+```text
+GPT_4O_MINI_INPUT_PER_1M=0.15
+GPT_4O_MINI_OUTPUT_PER_1M=0.60
+GPT_41_MINI_INPUT_PER_1M=0.40
+GPT_41_MINI_OUTPUT_PER_1M=1.60
+```

@@ -1,0 +1,10 @@
+.git
+.gitignore
+__pycache__/
+*.pyc
+venv/
+.venv/
+.env
+backend/data/
+generated_startups/
+*.index

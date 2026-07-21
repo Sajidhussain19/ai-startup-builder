@@ -1,5 +1,6 @@
 from openai import OpenAI
 from dotenv import load_dotenv
+from utils.guardrails import safe_prompt_value
 import os
 
 load_dotenv()
@@ -9,6 +10,8 @@ def run_logo_agent(startup_name: str, startup_idea: str) -> dict:
     Logo Agent - Generates a startup logo using DALL-E 3
     """
     client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+    startup_name = safe_prompt_value(startup_name, max_length=80)
+    startup_idea = safe_prompt_value(startup_idea, max_length=300)
 
     print(f"🎨 Logo Agent generating logo for: {startup_name}")
 

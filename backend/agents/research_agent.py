@@ -1,5 +1,6 @@
 from openai import OpenAI
 from dotenv import load_dotenv
+from utils.guardrails import apply_output_guardrails, build_guardrailed_messages
 import os
 
 load_dotenv()
@@ -33,24 +34,19 @@ def run_research_agent(startup_idea: str) -> dict:
 
     response = client.chat.completions.create(
         model="gpt-4o-mini",
-        messages=[
-            {
-                "role": "system",
-                "content": "You are an expert market research analyst with deep knowledge of startup ecosystems and market dynamics."
-            },
-            {
-                "role": "user",
-                "content": prompt
-            }
-        ],
+        messages=build_guardrailed_messages(
+            "You are an expert market research analyst with deep knowledge of startup ecosystems and market dynamics.",
+            prompt
+        ),
         max_tokens=1000,
         temperature=0.7
     )
 
     result = response.choices[0].message.content
+    guarded = apply_output_guardrails("Research Agent", result)
 
     return {
         "agent": "Research Agent",
-        "status": "completed",
-        "output": result
+        "status": guarded["status"],
+        "output": guarded["output"]
     }

@@ -1,6 +1,7 @@
 import streamlit as st
 import requests
 import json
+import os
 
 # Page config
 st.set_page_config(
@@ -42,7 +43,8 @@ st.markdown('<p class="main-header">🚀 AI Startup Builder</p>', unsafe_allow_h
 st.markdown('<p class="sub-header">Enter your idea. Our AI agents will build your complete startup plan.</p>', unsafe_allow_html=True)
 
 # Backend URL
-BACKEND_URL = "https://ai-startup-builder-backend.onrender.com"
+backend_raw_url = os.getenv("BACKEND_URL", "https://ai-startup-builder-backend.onrender.com").rstrip("/")
+BACKEND_URL = backend_raw_url if backend_raw_url.startswith(("http://", "https://")) else f"http://{backend_raw_url}"
 
 # Input section
 st.markdown("---")
@@ -173,7 +175,11 @@ if generate_btn:
                 )
 
             else:
-                st.error(f"❌ Backend error: {response.status_code}")
+                try:
+                    error_detail = response.json().get("detail", response.text)
+                except Exception:
+                    error_detail = response.text
+                st.error(f"❌ Backend error: {response.status_code} - {error_detail}")
 
         except requests.exceptions.Timeout:
             st.error("⏱️ Request timed out. The agents are taking too long. Try again.")

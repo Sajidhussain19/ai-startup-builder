@@ -1,0 +1,29 @@
+services:
+  - type: web
+    name: ai-startup-builder-backend
+    runtime: docker
+    plan: free
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /api/v1/health
+    envVars:
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: LANGCHAIN_TRACING_V2
+        value: "false"
+      - key: LANGCHAIN_PROJECT
+        value: ai-startup-builder
+      - key: ENABLE_DEBUG_ENV
+        value: "false"
+
+  - type: web
+    name: ai-startup-builder-frontend
+    runtime: python
+    plan: free
+    buildCommand: pip install -r frontend/requirements.txt
+    startCommand: streamlit run frontend/streamlit_app.py --server.address 0.0.0.0 --server.port $PORT
+    envVars:
+      - key: BACKEND_URL
+        fromService:
+          type: web
+          name: ai-startup-builder-backend
+          property: hostport

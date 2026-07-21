@@ -1,4 +1,10 @@
-from fastapi import FastAPI, Request
+import sys
+
+for stream in (sys.stdout, sys.stderr):
+    if hasattr(stream, "reconfigure"):
+        stream.reconfigure(encoding="utf-8")
+
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.util import get_remote_address
@@ -52,6 +58,14 @@ app.add_middleware(
 class StartupRequest(BaseModel):
     idea: str
 
+
+def sanitize_idea_or_raise(idea: str) -> str:
+    try:
+        return sanitize_input(idea)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
 # Health check route
 @app.get("/api/v1/health")
 @limiter.limit("10/minute")
@@ -65,6 +79,9 @@ async def health_check(request: Request):
 # Debug env vars
 @app.get("/api/v1/debug/env")
 async def debug_env(request: Request):
+    if os.getenv("ENABLE_DEBUG_ENV", "false").lower() != "true":
+        raise HTTPException(status_code=404, detail="Not found")
+
     return {
         "LANGCHAIN_TRACING_V2": os.getenv("LANGCHAIN_TRACING_V2"),
         "LANGCHAIN_PROJECT": os.getenv("LANGCHAIN_PROJECT"),
@@ -76,10 +93,7 @@ async def debug_env(request: Request):
 @app.post("/api/v1/generate/logo")
 @limiter.limit("3/minute")
 async def generate_logo(request: Request, body: StartupRequest):
-    try:
-        clean_idea = sanitize_input(body.idea)
-    except ValueError as e:
-        return {"error": str(e)}
+    clean_idea = sanitize_idea_or_raise(body.idea)
 
     # Run CEO agent to get startup name
     ceo_result = run_ceo_agent(clean_idea)
@@ -110,10 +124,7 @@ async def generate_logo(request: Request, body: StartupRequest):
 @app.post("/api/v1/generate/ceo")
 @limiter.limit("5/minute")
 async def generate_ceo_strategy(request: Request, body: StartupRequest):
-    try:
-        clean_idea = sanitize_input(body.idea)
-    except ValueError as e:
-        return {"error": str(e)}
+    clean_idea = sanitize_idea_or_raise(body.idea)
 
     result = run_ceo_agent(clean_idea)
     return result
@@ -122,10 +133,7 @@ async def generate_ceo_strategy(request: Request, body: StartupRequest):
 @app.post("/api/v1/generate/research")
 @limiter.limit("5/minute")
 async def generate_research(request: Request, body: StartupRequest):
-    try:
-        clean_idea = sanitize_input(body.idea)
-    except ValueError as e:
-        return {"error": str(e)}
+    clean_idea = sanitize_idea_or_raise(body.idea)
 
     result = run_research_agent(clean_idea)
     return result
@@ -134,10 +142,7 @@ async def generate_research(request: Request, body: StartupRequest):
 @app.post("/api/v1/generate/marketing")
 @limiter.limit("5/minute")
 async def generate_marketing(request: Request, body: StartupRequest):
-    try:
-        clean_idea = sanitize_input(body.idea)
-    except ValueError as e:
-        return {"error": str(e)}
+    clean_idea = sanitize_idea_or_raise(body.idea)
 
     result = run_marketing_agent(clean_idea)
     return result
@@ -146,10 +151,7 @@ async def generate_marketing(request: Request, body: StartupRequest):
 @app.post("/api/v1/generate/finance")
 @limiter.limit("5/minute")
 async def generate_finance(request: Request, body: StartupRequest):
-    try:
-        clean_idea = sanitize_input(body.idea)
-    except ValueError as e:
-        return {"error": str(e)}
+    clean_idea = sanitize_idea_or_raise(body.idea)
 
     result = run_finance_agent(clean_idea)
     return result
@@ -158,10 +160,7 @@ async def generate_finance(request: Request, body: StartupRequest):
 @app.post("/api/v1/generate/developer")
 @limiter.limit("5/minute")
 async def generate_developer(request: Request, body: StartupRequest):
-    try:
-        clean_idea = sanitize_input(body.idea)
-    except ValueError as e:
-        return {"error": str(e)}
+    clean_idea = sanitize_idea_or_raise(body.idea)
 
     result = run_developer_agent(clean_idea)
     return result
@@ -170,10 +169,7 @@ async def generate_developer(request: Request, body: StartupRequest):
 @app.post("/api/v1/generate/pitch")
 @limiter.limit("5/minute")
 async def generate_pitch(request: Request, body: StartupRequest):
-    try:
-        clean_idea = sanitize_input(body.idea)
-    except ValueError as e:
-        return {"error": str(e)}
+    clean_idea = sanitize_idea_or_raise(body.idea)
 
     result = run_pitch_agent(clean_idea)
     return result
@@ -182,10 +178,7 @@ async def generate_pitch(request: Request, body: StartupRequest):
 @app.post("/api/v1/generate/full")
 @limiter.limit("2/minute")
 async def generate_full_startup(request: Request, body: StartupRequest):
-    try:
-        clean_idea = sanitize_input(body.idea)
-    except ValueError as e:
-        return {"error": str(e)}
+    clean_idea = sanitize_idea_or_raise(body.idea)
 
     result = run_all_agents(clean_idea)
     return result
@@ -194,10 +187,7 @@ async def generate_full_startup(request: Request, body: StartupRequest):
 @app.post("/api/v1/generate/all")
 @limiter.limit("2/minute")
 async def generate_all_startup(request: Request, body: StartupRequest):
-    try:
-        clean_idea = sanitize_input(body.idea)
-    except ValueError as e:
-        return {"error": str(e)}
+    clean_idea = sanitize_idea_or_raise(body.idea)
 
     result = run_all_agents(clean_idea)
     return result
@@ -217,10 +207,7 @@ async def eval_agent(request: Request, body: dict):
 @app.post("/api/v1/generate/langgraph")
 @limiter.limit("2/minute")
 async def generate_langgraph(request: Request, body: StartupRequest):
-    try:
-        clean_idea = sanitize_input(body.idea)
-    except ValueError as e:
-        return {"error": str(e)}
+    clean_idea = sanitize_idea_or_raise(body.idea)
 
     result = run_langgraph_agents(clean_idea)
     return result
